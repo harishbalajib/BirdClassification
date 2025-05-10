@@ -1,0 +1,25 @@
+# Use an official Python runtime as a base image
+FROM python:3.11-slim-buster
+
+# Set the working directory
+WORKDIR /app
+
+# Install system-level dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy your FastAPI app code into the container
+COPY . .
+
+# Expose the updated FastAPI port
+EXPOSE 6540
+
+# Start the FastAPI app with Uvicorn (app.py)
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "6540"]

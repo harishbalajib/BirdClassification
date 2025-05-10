@@ -1,0 +1,13 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi
+uvicorn
+pydantic
+numpy
+Pillow
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+torchaudio==2.2.1+cpu
+timm
+peft
+prometheus-fastapi-instrumentator
