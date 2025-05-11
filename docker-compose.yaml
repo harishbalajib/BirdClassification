@@ -1,9 +1,13 @@
+version: "3.8"
+name: fastapi_test
+
 services:
-  birdclef_monolith:
+
+  fastapi_server:
     build:
       context: .
-      dockerfile: DockerFile
-    container_name: birdclef_allinone
+      dockerfile: fastapi/dockerfile
+    container_name: fastapi_server
     runtime: nvidia
     deploy:
       resources:
@@ -12,11 +16,30 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    volumes:
+      - ./:/workspace  # mount entire project inside container
+    working_dir: /workspace/fastapi_pt
     ports:
-      - "8000:8000"  # Triton HTTP
-      - "8001:8001"  # Triton gRPC
-      - "8002:8002"  # Triton metrics
-      - "8080:8080"  # FastAPI
-      - "8888:8888"  # Jupyter
-      - "9090:9090"  # Prometheus
-      - "3000:3000"  # Grafana
+      - "8000:8000"
+
+  jupyter:
+    image: quay.io/jupyter/minimal-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/home/jovyan/work  # mount entire project
+    command: >
+      bash -c "pip install numpy && start-notebook.sh --NotebookApp.token=''"
+    working_dir: /home/jovyan/work
+
+  flask:
+    build:
+      context: .
+    container_name: flask
+    ports:
+      - "5000:5000"
+    environment:
+      - FASTAPI_SERVER_URL=http://fastapi_server:8000
+    depends_on:
+      - fastapi_server
