@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy your FastAPI app code into the container
 COPY . .
 
+
 # Expose the updated FastAPI port
 EXPOSE 6540
 
