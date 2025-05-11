@@ -1,20 +1,20 @@
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install system dependencies first
+RUN apt-get update && apt-get install -y ffmpeg
 
-# Copy FastAPI app and models
+# Install Python deps early (separate COPY for caching)
+COPY base-requirements.txt .
+RUN pip install --no-cache-dir -r base-requirements.txt
+
+COPY dev-requirements.txt .
+RUN pip install --no-cache-dir -r dev-requirements.txt
+
+# Now copy actual app
 COPY . .
 
-# Make sure model directory exists inside the container
-COPY Optimized_Model /app/Optimized_Model
-
-# Expose FastAPI port
 EXPOSE 8000
-
-# Start the FastAPI server
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

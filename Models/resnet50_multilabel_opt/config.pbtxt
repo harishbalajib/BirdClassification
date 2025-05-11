@@ -1,0 +1,24 @@
+name: "resnet50_multilabel_opt"
+platform: "onnxruntime_onnx"
+
+input [
+  {
+    name: "mel_aug_input"
+    data_type: TYPE_FP32
+    dims: [1, 64, 313]
+  }
+]
+
+output [
+  {
+    name: "resnet_output"
+    data_type: TYPE_FP32
+    dims: [206]
+  }
+]
+
+max_batch_size: 128
+dynamic_batching {
+  preferred_batch_size: [32, 64, 128]
+  max_queue_delay_microseconds: 100
+}

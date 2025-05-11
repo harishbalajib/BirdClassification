@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+torchaudio
+torch
+numpy
+jinja2
+prometheus-fastapi-instrumentator
+tritonclient[http]
+python-multipart
+ffmpeg-python

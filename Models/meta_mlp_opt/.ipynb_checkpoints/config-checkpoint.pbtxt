@@ -1,0 +1,24 @@
+name: "meta_mlp_opt"
+platform: "onnxruntime_onnx"
+
+input [
+  {
+    name: "fusion_input"
+    data_type: TYPE_FP32
+    dims: [824]
+  }
+]
+
+output [
+  {
+    name: "meta_output"
+    data_type: TYPE_FP32
+    dims: [206]
+  }
+]
+
+max_batch_size: 128
+dynamic_batching {
+  preferred_batch_size: [32, 64, 128]
+  max_queue_delay_microseconds: 100
+}
