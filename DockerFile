@@ -8,7 +8,7 @@ COPY . /workspace
 
 # === Install dependencies ===
 RUN apt-get update && apt-get install -y \
-    ffmpeg curl software-properties-common gnupg2 gnup lsb-release wget \
+    ffmpeg curl software-properties-common gnup2 gnup lsb-release wget \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
        torch torchaudio fastapi uvicorn jinja2 numpy \
