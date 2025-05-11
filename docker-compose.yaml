@@ -6,7 +6,7 @@ services:
   fastapi_server:
     build:
       context: .
-      dockerfile: fastapi/dockerfile
+      dockerfile: fastapi/Dockerfile
     container_name: fastapi_server
     runtime: nvidia
     deploy:
@@ -17,8 +17,8 @@ services:
               count: all
               capabilities: [gpu]
     volumes:
-      - ./:/workspace  # mount entire project inside container
-    working_dir: /workspace/fastapi_pt
+      - ./:/workspace
+    working_dir: /workspace/fastapi
     ports:
       - "8000:8000"
 
@@ -28,7 +28,7 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - ./:/home/jovyan/work  # mount entire project
+      - ./:/home/jovyan/work
     command: >
       bash -c "pip install numpy && start-notebook.sh --NotebookApp.token=''"
     working_dir: /home/jovyan/work
@@ -36,6 +36,7 @@ services:
   flask:
     build:
       context: .
+      dockerfile: flask/Dockerfile  # change this based on your actual path
     container_name: flask
     ports:
       - "5000:5000"
