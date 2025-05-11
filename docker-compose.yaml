@@ -1,0 +1,68 @@
+version: "3.8"
+name: birdclef_full_stack
+
+services:
+  triton_server:
+    build:
+      context: /home/cc/serve-system-chi
+      dockerfile: docker/Dockerfile.triton
+    container_name: triton_server
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "8000:8000"  # HTTP
+      - "8001:8001"  # gRPC
+      - "8002:8002"  # Metrics
+    volumes:
+      - /home/cc/serve-system-chi/models:/models
+    command: >
+      tritonserver --model-repository=/models
+
+  fastapi_server:
+    build:
+      context: /home/cc/serve-system-chi/fastapi_pt
+      dockerfile: Dockerfile
+    container_name: fastapi_server
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - TRITON_SERVER_URL=http://triton_server:8000
+    ports:
+      - "8080:8000"  # Expose FastAPI on port 8080
+    depends_on:
+      - triton_server
+
+  jupyter:
+    image: quay.io/jupyter/minimal-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - /home/cc/serve-system-chi/workspace:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    command: >
+      bash -c "pip install numpy tritonclient[all] && start-notebook.sh --NotebookApp.token=''"
+
+  flask:
+    build:
+      context: https://github.com/teaching-on-testbeds/gourmetgram.git#fastapi
+    container_name: flask
+    ports:
+      - "80:5000"
+    environment:
+      - FASTAPI_SERVER_URL=http://fastapi_server:8000
+    depends_on:
+      - fastapi_server
