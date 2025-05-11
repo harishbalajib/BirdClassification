@@ -23,8 +23,15 @@
       text-align: center;
       margin-bottom: 2rem;
     }
-    .custom-file-label::after {
-      content: "Browse";
+    .form-label, .form-text {
+      color: #e0e0e0;
+    }
+    .btn-success {
+      background-color: #28a745;
+      border: none;
+    }
+    .btn-success:hover {
+      background-color: #218838;
     }
   </style>
 </head>
@@ -32,25 +39,62 @@
 <body>
   <div class="container col-md-6">
     <h1>BirdCLEF Inference</h1>
-    <form action="/predict" method="post" enctype="multipart/form-data">
+    <form id="upload-form" enctype="multipart/form-data">
       <div class="mb-3">
-        <label for="file" class="form-label">Upload Bird Audio (.wav)</label>
-        <input class="form-control" type="file" id="file" name="file" accept=".wav" required>
-        <div id="filename" class="form-text text-light mt-1">No file selected</div>
+        <label for="file" class="form-label">Upload Bird Audio (.wav or .ogg)</label>
+        <input class="form-control" type="file" id="file" name="file" accept=".wav,.ogg" required>
+        <div id="filename" class="form-text mt-1">No file selected</div>
       </div>
       <button type="submit" class="btn btn-success w-100">Classify Audio</button>
     </form>
+
+    <div id="results" class="mt-4 text-light"></div>
   </div>
 
   <script>
     const fileInput = document.getElementById('file');
     const filenameDisplay = document.getElementById('filename');
+    const form = document.getElementById('upload-form');
+    const resultsDiv = document.getElementById('results');
 
     fileInput.addEventListener('change', function () {
       if (fileInput.files.length > 0) {
         filenameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
       } else {
         filenameDisplay.textContent = "No file selected";
+      }
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      resultsDiv.innerHTML = "⏳ Processing...";
+
+      try {
+        const res = await fetch("/predict", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          const labels = data.predicted_labels.join(", ") || "None";
+          const probs = data.probabilities.map(p => p.toFixed(2)).join(", ") || "0.0";
+          resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+              <strong>Predicted:</strong> ${labels}<br/>
+              <strong>Confidences:</strong> ${probs}
+            </div>
+          `;
+        } else {
+          resultsDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.detail}</div>`;
+        }
+      } catch (err) {
+        resultsDiv.innerHTML = `<div class="alert alert-danger">❌ Exception: ${err.message}</div>`;
       }
     });
   </script>

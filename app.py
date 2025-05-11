@@ -1,7 +1,8 @@
 # BirdCLEF Inference API (Multimodal Fusion with Internal Preprocessing)
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -12,13 +13,19 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import torch.nn as nn
 import timm
 from peft import get_peft_model, LoraConfig
+import uvicorn
 
 # Constants
 NUM_CLASSES = 206
 THRESHOLD = 0.5
 SAMPLE_RATE = 16000
 DURATION_SEC = 10
+RAW_MODEL_INPUT_LEN = 320000  # <-- updated for correct shape
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# HTML template path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Define models
 class MetaMLP(nn.Module):
@@ -45,48 +52,54 @@ class DummyModel(nn.Module):
         self.fc = nn.Linear(np.prod(input_shape), output_dim)
     def forward(self, x): return self.fc(self.flatten(x))
 
-# Load dummy models (replace with real ones)
-MODEL_DIR = "/mnt/BirdCLEF/Models"
-CKPT_META = os.path.join(MODEL_DIR, "best_meta_mlp.pt")
+# Load models (replace with real ones later)
+CKPT_META = os.path.join(BASE_DIR, "best_meta_mlp.pt")
 
 emb_model = DummyModel((2048,), NUM_CLASSES).to(DEVICE).eval()
 res_model = DummyModel((1, 64, 313), NUM_CLASSES).to(DEVICE).eval()
 eff_model = DummyModel((1, 64, 313), NUM_CLASSES).to(DEVICE).eval()
-raw_model = DummyModel((320000,), NUM_CLASSES).to(DEVICE).eval()
+raw_model = DummyModel((RAW_MODEL_INPUT_LEN,), NUM_CLASSES).to(DEVICE).eval()
 meta_model = MetaMLP(in_dim=NUM_CLASSES * 4, hidden_dims=[1024, 512], dropout=0.3).to(DEVICE)
 meta_model.load_state_dict(torch.load(CKPT_META, map_location=DEVICE))
 meta_model.eval()
 
-# Placeholder class names (replace with real labels)
+# Dummy class labels
 CLASSES = [f"class_{i}" for i in range(NUM_CLASSES)]
 
-# API setup
-app = FastAPI(title="BirdCLEF Inference API", description="Upload a .wav file for prediction", version="1.0.0")
+# FastAPI instance
+app = FastAPI(title="BirdCLEF Inference API", description="Upload a .wav or .ogg file for prediction", version="1.0.0")
 
-import uvicorn
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/predict")
 def predict(file: UploadFile = File(...)):
     try:
-        # Load audio
-        waveform, sr = torchaudio.load(io.BytesIO(file.file.read()))
-        waveform = waveform.squeeze(0).float()
+        audio_bytes = io.BytesIO(file.file.read())
+        waveform, sr = torchaudio.load(audio_bytes)
 
-        # Pad or trim
-        T = SAMPLE_RATE * DURATION_SEC
+        if sr != SAMPLE_RATE:
+            resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=SAMPLE_RATE)
+            waveform = resampler(waveform)
+
+        waveform = waveform.mean(dim=0) if waveform.dim() > 1 else waveform
+        waveform = waveform.float()
+
+        T = RAW_MODEL_INPUT_LEN  # <-- key fix
         if waveform.size(0) < T:
             waveform = F.pad(waveform, (0, T - waveform.size(0)))
         else:
             waveform = waveform[:T]
+
         waveform = (waveform - waveform.mean()) / waveform.std().clamp_min(1e-6)
         wav = waveform.unsqueeze(0).to(DEVICE)
 
-        # Simulate actual preprocessed inputs with correct shapes
+        # Dummy input tensors for other models
         emb = torch.tensor(np.random.randn(1, 2048), dtype=torch.float32).to(DEVICE)
         ma  = torch.tensor(np.random.randn(1, 1, 64, 313), dtype=torch.float32).to(DEVICE)
         m   = torch.tensor(np.random.randn(1, 1, 64, 313), dtype=torch.float32).to(DEVICE)
 
-        # Run models
         with torch.no_grad():
             p1 = torch.sigmoid(emb_model(emb))
             p2 = torch.sigmoid(res_model(ma))
@@ -106,4 +119,4 @@ def predict(file: UploadFile = File(...)):
 Instrumentator().instrument(app).expose(app)
 
 if __name__ == '__main__':
-    uvicorn.run("__main__:app", host="0.0.0.0", port=6540)
+    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)

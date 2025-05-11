@@ -5,9 +5,11 @@ uvicorn
 pydantic
 numpy
 Pillow
-torch==2.5.1+cpu
-torchvision==0.20.1+cpu
-torchaudio==2.2.1+cpu
+torch==2.5.1
+torchvision
+torchaudio
 timm
 peft
 prometheus-fastapi-instrumentator
+python-multipart
+jinja2
