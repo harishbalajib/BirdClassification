@@ -33,6 +33,10 @@
     .btn-success:hover {
       background-color: #218838;
     }
+    audio {
+      width: 100%;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 
@@ -44,6 +48,7 @@
         <label for="file" class="form-label">Upload Bird Audio (.wav or .ogg)</label>
         <input class="form-control" type="file" id="file" name="file" accept=".wav,.ogg" required>
         <div id="filename" class="form-text mt-1">No file selected</div>
+        <audio id="audio-preview" controls style="display:none;"></audio>
       </div>
       <button type="submit" class="btn btn-success w-100">Classify Audio</button>
     </form>
@@ -56,12 +61,18 @@
     const filenameDisplay = document.getElementById('filename');
     const form = document.getElementById('upload-form');
     const resultsDiv = document.getElementById('results');
+    const audioPreview = document.getElementById('audio-preview');
 
     fileInput.addEventListener('change', function () {
-      if (fileInput.files.length > 0) {
-        filenameDisplay.textContent = `Selected: ${fileInput.files[0].name}`;
+      const file = fileInput.files[0];
+      if (file) {
+        filenameDisplay.textContent = `Selected: ${file.name}`;
+        const audioURL = URL.createObjectURL(file);
+        audioPreview.src = audioURL;
+        audioPreview.style.display = 'block';
       } else {
         filenameDisplay.textContent = "No file selected";
+        audioPreview.style.display = 'none';
       }
     });
 
@@ -82,12 +93,10 @@
 
         const data = await res.json();
         if (res.ok) {
-          const labels = data.predicted_labels.join(", ") || "None";
-          const probs = data.probabilities.map(p => p.toFixed(2)).join(", ") || "0.0";
           resultsDiv.innerHTML = `
             <div class="alert alert-success">
-              <strong>Predicted:</strong> ${labels}<br/>
-              <strong>Confidences:</strong> ${probs}
+              <strong>Top Prediction:</strong> 🐦 ${data.predicted_label}<br/>
+              <strong>Confidence:</strong> ${data.probability.toFixed(2)}
             </div>
           `;
         } else {
