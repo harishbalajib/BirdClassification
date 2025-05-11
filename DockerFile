@@ -1,26 +1,39 @@
-# Use an official Python runtime as a base image
-FROM python:3.11-slim-buster
+FROM nvcr.io/nvidia/tritonserver:24.03-py3
 
-# Set the working directory
-WORKDIR /app
+# === Set up working directory ===
+WORKDIR /workspace
 
-# Install system-level dependencies
+# === Copy project files ===
+COPY . /workspace
+
+# === Install dependencies ===
 RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
+    ffmpeg curl software-properties-common gnupg2 gnup lsb-release wget \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir \
+       torch torchaudio fastapi uvicorn jinja2 numpy \
+       tritonclient[all] prometheus-fastapi-instrumentator \
+       notebook
 
-# Copy and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# === Install Grafana ===
+RUN curl -sL https://packages.grafana.com/gpg.key | apt-key add - && \
+    echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list && \
+    apt-get update && apt-get install -y grafana && apt-get clean
 
-# Copy your FastAPI app code into the container
-COPY . .
+# === Create Prometheus config directory ===
+RUN mkdir -p /etc/prometheus
 
+# === Copy Prometheus config ===
+COPY prometheus.yml /etc/prometheus/prometheus.yml
 
-# Expose the updated FastAPI port
-EXPOSE 6540
+# === Expose required ports ===
+EXPOSE 8000 8001 8002 8080 8888 9090 3000
 
-# Start the FastAPI app with Uvicorn (app.py)
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "6540"]
+# === Entrypoint script ===
+CMD bash -c "\
+  tritonserver --model-repository=/workspace/Models & \
+  uvicorn app:app --host 0.0.0.0 --port 8080 & \
+  jupyter notebook --ip=0.0.0.0 --port=8888 --NotebookApp.token='' --NotebookApp.root_dir=/workspace & \
+  prometheus --config.file=/etc/prometheus/prometheus.yml --web.listen-address=:9090 & \
+  grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini & \
+  tail -f /dev/null"
