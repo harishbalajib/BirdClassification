@@ -8,12 +8,13 @@ COPY . /workspace
 
 # === Install dependencies ===
 RUN apt-get update && apt-get install -y \
-    ffmpeg curl software-properties-common gnup2 gnup lsb-release wget \
+    ffmpeg curl software-properties-common gnupg2 lsb-release wget \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
        torch torchaudio fastapi uvicorn jinja2 numpy \
        tritonclient[all] prometheus-fastapi-instrumentator \
-       notebook
+       notebook \
+    && apt-get clean
 
 # === Install Grafana ===
 RUN curl -sL https://packages.grafana.com/gpg.key | apt-key add - && \

@@ -2,7 +2,7 @@ services:
   birdclef_monolith:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: DockerFile
     container_name: birdclef_allinone
     runtime: nvidia
     deploy:
